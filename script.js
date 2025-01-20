@@ -23,7 +23,7 @@ const inputElevation = document.querySelector(".form__input--elevation");
 
 class Workout {
   date = new Date();
-  id = Date.now();
+  id = `${Date.now()}`;
 
   constructor(coords, distance, duration) {
     this.coords = coords; // [lat, lng]
@@ -80,17 +80,20 @@ class App {
   #map;
   #mapEvent;
   #workouts = [];
+  #mapZoomLevel = 13;
 
   constructor() {
     this._loadMap = this._loadMap.bind(this);
     this._getPosition = this._getPosition.bind(this);
-    this._newWorkout = this._newWorkout.bind(this);
     this._showForm = this._showForm.bind(this);
 
-    form.addEventListener("submit", this._newWorkout);
+    form.addEventListener("submit", this._newWorkout.bind(this));
     inputType.addEventListener("change", this._toggleElevationField);
+    containerWorkouts.addEventListener("click", this._moveToPopup.bind(this));
 
     this._getPosition();
+
+    this._getLocalStorage();
   }
 
   _getPosition() {
@@ -106,7 +109,7 @@ class App {
 
     const coords = [latitude, longitude];
 
-    this.#map = L.map("map").setView(coords, 13);
+    this.#map = L.map("map").setView(coords, this.#mapZoomLevel);
 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
@@ -115,6 +118,10 @@ class App {
 
     // Handling clicks on map
     this.#map.on("click", this._showForm);
+
+    this.#workouts.forEach((workout) => {
+      this._renderWorkountMarker(workout);
+    });
   }
 
   _showForm(mapE) {
@@ -194,6 +201,9 @@ class App {
 
     // hide form and clear input fieldss
     this._hideForm();
+
+    // set local storage to all workouts
+    this._setLocalStorage();
   }
 
   _renderWorkountMarker(workout) {
@@ -266,6 +276,58 @@ class App {
 
     form.insertAdjacentHTML("afterend", html);
   }
+
+  _moveToPopup(e) {
+    const workoutEl = e.target.closest(".workout");
+
+    if (!workoutEl) return;
+
+    const { id } = workoutEl.dataset;
+
+    const workout = this.#workouts.find((work) => work.id === id);
+
+    this.#map.setView(workout.coords, this.#mapZoomLevel, {
+      animate: true,
+      pan: {
+        duration: 1,
+      },
+    });
+  }
+
+  _setLocalStorage() {
+    localStorage.setItem("workouts", JSON.stringify(this.#workouts));
+  }
+
+  _getLocalStorage() {
+    const data = JSON.parse(localStorage.getItem("workouts"));
+
+    if (!data) return;
+
+    this.#workouts = data;
+
+    this.#workouts.forEach((workout) => {
+      this._renderWorkout(workout);
+    });
+  }
+
+  reset() {
+    localStorage.removeItem("workouts");
+  }
 }
 
 const app = new App();
+
+// TODO
+/*
+  edit a workout
+  delete a workout
+  delete all workouts
+  sort workouts by distance
+  re-build Running and Cyclick objects coming from Local Storage
+  create error and cofirmation messages
+
+  [VERY HARD]
+  ability to podsition the map to show all workouts
+  ability to draw lines and shapes instead of just points
+  display weather data for workout time and place
+ */
